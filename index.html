@@ -498,6 +498,7 @@
 
     function day(index) {
       const d = data.daily;
+      if (!d || !d.time || !d.time[index]) return null;
       return {
         date: d.time[index],
         code: d.weather_code[index],
@@ -542,6 +543,9 @@
       const app = document.getElementById("app");
       const current = data.current;
       const today = day(0);
+      const forecastIndexes = data.daily.time.map((_, index) => index);
+      if (!forecastIndexes.length) throw new Error("暂无未来天气数据");
+      if (!forecastIndexes.includes(selected)) selected = forecastIndexes[0];
       const selectedDay = day(selected);
       const currentWeather = weather(current.weather_code, current.weather_text);
       const todayWeather = weather(today.code, today.text);
@@ -586,11 +590,11 @@
         </section>
 
         <div class="section-title">
-          <h2>未来 7 天</h2>
-          <small>左右滑动，点击查看</small>
+          <h2>15 天预报</h2>
+          <small>含今天，左右滑动</small>
         </div>
         <section class="days">
-          ${[1,2,3,4,5,6,7].map((i) => {
+          ${forecastIndexes.map((i) => {
             const item = day(i);
             const info = weather(item.code, item.text);
             return `<button class="day ${i === selected ? "active" : ""}" data-day="${i}">
@@ -682,7 +686,7 @@
     }
 
     function normalizeQWeather(nowData, hourlyData, dailyData) {
-      const daily = dailyData.daily.slice(0, 8);
+      const daily = dailyData.daily.slice(0, 15);
       const hourly = hourlyData.hourly.slice(0, 24);
 
       return {
@@ -740,10 +744,10 @@
         const [nowData, hourlyData, dailyData] = await Promise.all([
           qweatherGet("/v7/weather/now", { location }),
           qweatherGet("/v7/weather/24h", { location }),
-          qweatherGet("/v7/weather/7d", { location })
+          qweatherGet("/v7/weather/15d", { location })
         ]);
         data = normalizeQWeather(nowData, hourlyData, dailyData);
-        selected = 1;
+        selected = 0;
         render();
       } catch (error) {
         app.className = "error";
