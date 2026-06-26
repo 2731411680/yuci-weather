@@ -444,14 +444,22 @@
       jiexiu: { name: "介休", place: "山西晋中 · 介休", latitude: 37.027, longitude: 111.917 }
     };
 
-    const weatherMap = {
-      0: ["晴", "☀️"], 1: ["大部晴朗", "🌤️"], 2: ["局部多云", "⛅"], 3: ["阴", "☁️"],
-      45: ["雾", "🌫️"], 48: ["雾凇", "🌫️"],
-      51: ["小毛毛雨", "🌦️"], 53: ["中等毛毛雨", "🌦️"], 55: ["较强毛毛雨", "🌧️"],
-      61: ["小雨", "🌧️"], 63: ["中雨", "🌧️"], 65: ["大雨", "🌧️"],
-      71: ["小雪", "🌨️"], 73: ["中雪", "🌨️"], 75: ["大雪", "🌨️"],
-      80: ["阵雨", "🌦️"], 81: ["较强阵雨", "🌧️"], 82: ["强阵雨", "🌧️"],
-      95: ["雷暴", "⛈️"], 96: ["雷暴伴小冰雹", "⛈️"], 99: ["雷暴伴较强冰雹", "⛈️"]
+    const QWEATHER_KEY = "d668deaab1b0462ba8e91cb07b3af72a";
+    const QWEATHER_HOST = "https://jm78m3h44c.re.qweatherapi.com";
+
+    const weatherIconMap = {
+      100: "☀️", 101: "🌤️", 102: "🌤️", 103: "⛅", 104: "☁️",
+      150: "🌙", 151: "🌙", 152: "☁️", 153: "☁️",
+      300: "🌦️", 301: "🌧️", 302: "⛈️", 303: "⛈️", 304: "⛈️",
+      305: "🌧️", 306: "🌧️", 307: "🌧️", 308: "🌧️", 309: "🌦️",
+      310: "🌧️", 311: "🌧️", 312: "🌧️", 313: "🌧️", 314: "🌧️",
+      315: "🌧️", 316: "🌧️", 317: "🌧️", 318: "🌧️",
+      399: "🌧️", 400: "🌨️", 401: "🌨️", 402: "🌨️", 403: "❄️",
+      404: "🌨️", 405: "🌨️", 406: "🌨️", 407: "🌨️", 408: "🌨️",
+      409: "🌨️", 410: "❄️", 499: "🌨️", 500: "🌫️", 501: "🌫️",
+      502: "🌫️", 503: "🌫️", 504: "🌫️", 507: "🌫️", 508: "🌫️",
+      509: "🌫️", 510: "🌫️", 511: "🌫️", 512: "🌫️", 513: "🌫️",
+      514: "🌫️", 515: "🌫️", 900: "🔥", 901: "🥶"
     };
 
     let data;
@@ -461,8 +469,20 @@
     let currentCity = defaultCity;
     let currentLocation = null;
 
-    function weather(code) {
-      return weatherMap[code] || [`天气 ${code}`, "☁️"];
+    function weather(code, text) {
+      const icon = weatherIconMap[Number(code)] || iconFromText(text);
+      return [text || `天气 ${code}`, icon];
+    }
+
+    function iconFromText(text = "") {
+      if (text.includes("雷")) return "⛈️";
+      if (text.includes("雨")) return "🌧️";
+      if (text.includes("雪")) return "🌨️";
+      if (text.includes("雾") || text.includes("霾") || text.includes("沙")) return "🌫️";
+      if (text.includes("晴")) return "☀️";
+      if (text.includes("云")) return "⛅";
+      if (text.includes("阴")) return "☁️";
+      return "☁️";
     }
 
     function round(value, digits = 0) {
@@ -481,6 +501,7 @@
       return {
         date: d.time[index],
         code: d.weather_code[index],
+        text: d.weather_text[index],
         min: d.temperature_2m_min[index],
         max: d.temperature_2m_max[index],
         rain: d.precipitation_probability_max[index] ?? 0,
@@ -505,6 +526,7 @@
         label: hourLabel(time, offset),
         temp: hourly.temperature_2m[start + offset],
         code: hourly.weather_code[start + offset],
+        text: hourly.weather_text[start + offset],
         rain: hourly.precipitation_probability[start + offset] ?? 0,
         wind: hourly.wind_speed_10m[start + offset]
       }));
@@ -521,9 +543,9 @@
       const current = data.current;
       const today = day(0);
       const selectedDay = day(selected);
-      const currentWeather = weather(current.weather_code);
-      const todayWeather = weather(today.code);
-      const selectedWeather = weather(selectedDay.code);
+      const currentWeather = weather(current.weather_code, current.weather_text);
+      const todayWeather = weather(today.code, today.text);
+      const selectedWeather = weather(selectedDay.code, selectedDay.text);
       const risk = riskInfo(selectedDay.rain);
 
       app.className = "";
@@ -553,7 +575,7 @@
         </div>
         <section class="hours">
           ${nextHours(12).map((item, index) => {
-            const info = weather(item.code);
+            const info = weather(item.code, item.text);
             return `<div class="hour">
               <div class="hour-time">${item.label}</div>
               <div class="hour-icon">${info[1]}</div>
@@ -570,7 +592,7 @@
         <section class="days">
           ${[1,2,3,4,5,6,7].map((i) => {
             const item = day(i);
-            const info = weather(item.code);
+            const info = weather(item.code, item.text);
             return `<button class="day ${i === selected ? "active" : ""}" data-day="${i}">
               <div class="date">${dateLabel(item.date)}</div>
               <div class="emoji">${info[1]}</div>
@@ -636,12 +658,74 @@
       });
     }
 
+    function qweatherLocation(latitude, longitude) {
+      return `${longitude.toFixed(2)},${latitude.toFixed(2)}`;
+    }
+
+    async function qweatherGet(path, params) {
+      const query = new URLSearchParams({ ...params, key: QWEATHER_KEY });
+      const response = await fetch(`${QWEATHER_HOST}${path}?${query}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const result = await response.json();
+      if (result.code !== "200") throw new Error(`和风天气返回 ${result.code}`);
+      return result;
+    }
+
+    function rainRiskFromDaily(item) {
+      const text = `${item.textDay || ""}${item.textNight || ""}`;
+      const precip = Number(item.precip || 0);
+      if (text.includes("暴雨") || text.includes("大雨") || precip >= 10) return 80;
+      if (text.includes("中雨") || precip >= 2.5) return 60;
+      if (text.includes("小雨") || text.includes("阵雨") || precip > 0) return 40;
+      if (text.includes("雨")) return 30;
+      return 10;
+    }
+
+    function normalizeQWeather(nowData, hourlyData, dailyData) {
+      const daily = dailyData.daily.slice(0, 8);
+      const hourly = hourlyData.hourly.slice(0, 24);
+
+      return {
+        current: {
+          temperature_2m: Number(nowData.now.temp),
+          apparent_temperature: Number(nowData.now.feelsLike),
+          relative_humidity_2m: Number(nowData.now.humidity),
+          wind_speed_10m: Number(nowData.now.windSpeed),
+          weather_code: Number(nowData.now.icon),
+          weather_text: nowData.now.text
+        },
+        hourly: {
+          time: hourly.map(item => item.fxTime),
+          temperature_2m: hourly.map(item => Number(item.temp)),
+          weather_code: hourly.map(item => Number(item.icon)),
+          weather_text: hourly.map(item => item.text),
+          precipitation_probability: hourly.map(item => Number(item.pop || 0)),
+          wind_speed_10m: hourly.map(item => Number(item.windSpeed || 0))
+        },
+        daily: {
+          time: daily.map(item => item.fxDate),
+          weather_code: daily.map(item => Number(item.iconDay || item.iconNight)),
+          weather_text: daily.map(item => item.textDay || item.textNight),
+          temperature_2m_max: daily.map(item => Number(item.tempMax)),
+          temperature_2m_min: daily.map(item => Number(item.tempMin)),
+          precipitation_probability_max: daily.map(item => Number(item.pop || rainRiskFromDaily(item))),
+          precipitation_sum: daily.map(item => Number(item.precip || 0))
+        }
+      };
+    }
+
     async function load() {
       const app = document.getElementById("app");
       const city = cities[currentCity];
       app.className = "loading";
       app.textContent = `正在获取${city.name}天气...`;
       try {
+        if (!QWEATHER_KEY || QWEATHER_KEY === "在这里填写你的API_KEY") {
+          throw new Error("请先在 index.html 里填写你的和风天气 KEY");
+        }
+        if (QWEATHER_KEY.includes("qweatherapi.com")) {
+          throw new Error("你把 API Host 填到了 KEY 位置，请创建 API KEY 后再填写");
+        }
         let latitude = city.latitude;
         let longitude = city.longitude;
         if (currentCity === "current") {
@@ -652,21 +736,24 @@
           cities.current.place = "定位天气 · 当前位置";
           document.querySelector(".place").textContent = cities.current.place;
         }
-        const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,apparent_temperature&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=Asia%2FShanghai&forecast_days=8`;
-        const response = await fetch(apiUrl, { cache: "no-store" });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        data = await response.json();
+        const location = qweatherLocation(latitude, longitude);
+        const [nowData, hourlyData, dailyData] = await Promise.all([
+          qweatherGet("/v7/weather/now", { location }),
+          qweatherGet("/v7/weather/24h", { location }),
+          qweatherGet("/v7/weather/7d", { location })
+        ]);
+        data = normalizeQWeather(nowData, hourlyData, dailyData);
         selected = 1;
         render();
       } catch (error) {
         app.className = "error";
-        app.innerHTML = `<strong>天气获取失败</strong>${friendlyError(error)}<br><br>可能是本地 file 预览、网络代理或天气接口暂时连不上。发布到 GitHub Pages 后，用手机网络或 Wi-Fi 再打开会更接近真实效果。`;
+        app.innerHTML = `<strong>天气获取失败</strong>${friendlyError(error)}<br><br>请检查和风天气 KEY 是否已填写、额度是否正常，或者稍后用手机网络再试一次。`;
       }
     }
 
     function friendlyError(error) {
       if (error.message === "Failed to fetch") {
-        return "天气接口暂时没有连上。";
+        return "和风天气接口暂时没有连上。";
       }
       return error.message;
     }
